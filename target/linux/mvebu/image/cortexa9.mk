@@ -35,6 +35,12 @@ define Build/seil-header
   mv $@.new $@
 endef
 
+define Build/netgear-gs110emx-header
+  $(TOPDIR)/scripts/netgear-gs110emx-header.py \
+    $(if $(findstring update,$(1)),--update) $@ $@.new
+  mv $@.new $@
+endef
+
 define Device/dsa-migration
   DEVICE_COMPAT_VERSION := 1.1
   DEVICE_COMPAT_MESSAGE := Config cannot be migrated from swconfig to DSA
@@ -398,6 +404,31 @@ define Device/marvell_axp-gp
   SUPPORTED_DEVICES += armada-xp-gp
 endef
 TARGET_DEVICES += marvell_axp-gp
+
+define Device/netgear_gs110emx
+  DEVICE_VENDOR := NETGEAR
+  DEVICE_MODEL := GS110EMX
+  SOC := armada-381
+  DEVICE_DTS := armada-381-netgear-gs110emx
+  # mirror the stock FIT layout in case U-Boot boots "#config@0"
+  DEVICE_DTS_CONFIG := config@0
+  DEVICE_DTS_DELIMITER := @
+  DEVICE_DTS_LOADADDR := 0x01000000
+  KERNEL := kernel-bin | fit none $$(KDIR)/image-$$(DEVICE_DTS).dtb
+  BLOCKSIZE := 64k
+  IMAGE_SIZE := 15232k
+  IMAGES := factory.bin sysupgrade.bin
+  # The header CRC covers everything up to the end of the squashfs, never
+  # rootfs_data. The stock web UI writes to the 9M image0 partition only.
+  IMAGE/factory.bin := append-kernel | netgear-gs110emx-header | \
+    pad-to $$(BLOCKSIZE) | append-rootfs | netgear-gs110emx-header update | \
+    check-size 9152k
+  IMAGE/sysupgrade.bin := append-kernel | netgear-gs110emx-header | \
+    pad-to $$(BLOCKSIZE) | append-rootfs | netgear-gs110emx-header update | \
+    pad-rootfs | check-size | append-metadata
+  DEVICE_PACKAGES := kmod-dsa-mv88e6xxx kmod-phy-marvell-10g uboot-envtools
+endef
+TARGET_DEVICES += netgear_gs110emx
 
 define Device/plathome_openblocks-ax3-4
   DEVICE_VENDOR := Plat'Home

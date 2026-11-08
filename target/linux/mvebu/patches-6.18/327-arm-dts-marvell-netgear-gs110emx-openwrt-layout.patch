@@ -1,0 +1,76 @@
+From: FuNK3Y <FuNK3Y@users.noreply.github.com>
+Subject: ARM: dts: marvell: gs110emx: OpenWrt flash layout and MAC address
+
+Merge the stock image0, config and debug partitions into a single
+"firmware" partition holding the NETGEAR header + FIT kernel + rootfs,
+split by mtdsplit-fit. Read the MAC address from the U-Boot environment
+and fix the partition unit addresses.
+
+Signed-off-by: FuNK3Y <FuNK3Y@users.noreply.github.com>
+---
+--- a/arch/arm/boot/dts/marvell/armada-381-netgear-gs110emx.dts
++++ b/arch/arm/boot/dts/marvell/armada-381-netgear-gs110emx.dts
+@@ -13,6 +13,7 @@
+ 	aliases {
+ 		/* So that mvebu u-boot can update the MAC addresses */
+ 		ethernet1 = &eth0;
++		label-mac-device = &eth0;
+ 	};
+ 
+ 	chosen {
+@@ -60,6 +61,8 @@
+ 	bm,pool-long = <0>;
+ 	bm,pool-short = <1>;
+ 	buffer-manager = <&bm>;
++	nvmem-cells = <&macaddr_uboot_ethaddr 0>;
++	nvmem-cell-names = "mac-address";
+ 	phy-mode = "rgmii-id";
+ 	pinctrl-0 = <&ge0_rgmii_pins>;
+ 	pinctrl-names = "default";
+@@ -261,26 +264,32 @@
+ 			partition@100000 {
+ 				label = "env";
+ 				reg = <0x00100000 0x00010000>;
+-			};
+ 
+-			partition@200000 {
+-				label = "rsv";
+-				reg = <0x00110000 0x00010000>;
+-			};
++				nvmem-layout {
++					compatible = "u-boot,env";
+ 
+-			partition@300000 {
+-				label = "image0";
+-				reg = <0x00120000 0x00900000>;
++					macaddr_uboot_ethaddr: ethaddr {
++						#nvmem-cell-cells = <1>;
++					};
++				};
+ 			};
+ 
+-			partition@400000 {
+-				label = "config";
+-				reg = <0x00a20000 0x00300000>;
++			partition@110000 {
++				label = "rsv";
++				read-only;
++				reg = <0x00110000 0x00010000>;
+ 			};
+ 
+-			partition@480000 {
+-				label = "debug";
+-				reg = <0x00d20000 0x002e0000>;
++			/*
++			 * Stock image0 (9M), config (3M) and debug (~2.9M)
++			 * merged. Images start with a 0x40 byte NETGEAR
++			 * header followed by the FIT kernel and the rootfs.
++			 */
++			partition@120000 {
++				label = "firmware";
++				compatible = "denx,fit";
++				openwrt,fit-offset = <0x40>;
++				reg = <0x00120000 0x00ee0000>;
+ 			};
+ 		};
+ 	};
